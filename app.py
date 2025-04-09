@@ -51,14 +51,6 @@ def handle_file(file):
         return f"File {file.name} uploaded successfully."
     return ""
 
-def generate_plot(message):
-    x = np.linspace(0, 10, 100)
-    y = np.sin(x) * len(message)
-    fig, ax = plt.subplots()
-    ax.plot(x, y)
-    ax.set_title("Plot based on message length")
-    return fig
-
 # Create the chat interface with additional inputs for file upload
 with gr.Blocks() as demo:
     chatbot = gr.ChatInterface(
@@ -71,11 +63,9 @@ with gr.Blocks() as demo:
 
     with gr.Accordion("Upload a File", open=False):
         file_upload = gr.File(label="Upload a File")
-    plot_output = gr.Plot(label="Plot Output")
 
     clear = gr.Button("Clear")
     file_upload.change(handle_file, file_upload, chatbot, queue=False)
     clear.click(lambda: None, None, chatbot, queue=False)
-    clear.click(lambda: None, None, plot_output, queue=False)
 
 demo.launch(server_name="0.0.0.0", server_port=port)
