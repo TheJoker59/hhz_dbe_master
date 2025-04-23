@@ -1,82 +1,43 @@
 import gradio as gr
 import os
-import matplotlib.pyplot as plt
-import numpy as np
-import pandas as pd
-import requests
-import json
-
-# Azure endpoint configuration
-AZURE_ENDPOINT = os.environ.get("AZURE_ENDPOINT")
-AZURE_API_KEY = os.environ.get("AZURE_API_KEY")
+from azure_chat import chat_with_azure
+from file_handler import handle_file
 
 # Port konfigurieren
 port = int(os.environ.get("WEBSITE_PORT", 7860))
 
-# Chatfunktion mit CSV-Zustand
-def chat_with_azure(message, history, file_state):
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {AZURE_API_KEY}",
-        "Accept": "application/json"
-    }
+# Logo URL
+logo_path = "https://kipu-quantum.com/basisTheme/common/logo.png"
 
-    # Konvertiere History
-    chat_history = []
-    for i in range(0, len(history), 2):
-        user_msg = history[i]["content"] if history[i]["role"] == "user" else ""
-        bot_msg = history[i + 1]["content"] if i + 1 < len(history) and history[i + 1]["role"] == "assistant" else ""
-        if user_msg.strip() or bot_msg.strip():
-            chat_history.append({
-                "inputs": {"question": user_msg},
-                "outputs": {"answer": bot_msg}
-            })
+# Einfaches CSS für das Logo
+custom_css = """
+.logo-image {
+    max-height: 40px;
+    margin: 10px;
+    display: inline-block;
+    object-fit: contain;
+}
 
-    # Nur beim ersten Mal CSV-Inhalt anhängen
-    if file_state["csv_text"] and not file_state["was_sent"]:
-        message = f"{message.strip()}\n\n[CSV-Daten hochgeladen]\n{file_state['csv_text']}"
-        file_state["was_sent"] = True  # Flag setzen
+.logo-container {
+    display: flex;
+    align-items: center;
+    margin-bottom: 10px;
+}
 
-    # Payload aufbauen
-    payload = {
-        "chat_input": message,
-        "chat_history": chat_history
-    }
-
-    print("📤 Gesendeter Payload:")
-    print(json.dumps(payload, indent=2, ensure_ascii=False))
-
-    try:
-        response = requests.post(AZURE_ENDPOINT, headers=headers, json=payload)
-        response.raise_for_status()
-        return response.json().get("chat_output", "⚠️ Keine Antwort erhalten."), file_state
-    except Exception as e:
-        return f"❌ Fehler beim Aufruf des Azure-Endpoints: {str(e)}", file_state
-
-# Datei-Upload verarbeiten
-def handle_file(file, file_state):
-    if file and file.name.endswith('.csv'):
-        try:
-            # Prüfen ob neue Datei
-            if file.name != file_state["filename"]:
-                df = pd.read_csv(file)
-                header_info = ", ".join(df.columns)
-                preview = df.to_string(index=False)
-                file_state["csv_text"] = f"Spalten: {header_info}\nVorschau:\n{preview}"
-                file_state["was_sent"] = False
-                file_state["filename"] = file.name
-                return f"✅ Neue CSV-Datei **{file.name}** erfolgreich hochgeladen.", file_state
-            else:
-                return f"⚠️ Datei **{file.name}** wurde bereits verwendet.", file_state
-        except Exception as e:
-            return f"❌ Fehler beim Lesen der CSV-Datei: {str(e)}", file_state
-    return "❌ Ungültige Datei. Nur .csv erlaubt.", file_state
+.title {
+    margin-left: 10px;
+    flex-grow: 1;
+}
+"""
 
 # GUI aufbauen
-with gr.Blocks() as demo:
-    gr.Markdown("## 💬 Chat mit Azure + Datei-Upload")
+with gr.Blocks(css=custom_css) as demo:
+    # Logo als HTML-Element einfügen
+    with gr.Row(elem_classes="logo-container"):
+        gr.HTML(f'<img src="{logo_path}" class="logo-image" alt="Logo" />')
+        gr.Markdown("## 💬 Chat mit Azure + Datei-Upload", elem_classes="title")
 
-    # Zustands-Objekt für CSV
+    # Zustands-Objekt für Datei
     file_state = gr.State({"csv_text": None, "filename": None, "was_sent": False})
 
     # ChatInterface mit State
@@ -91,7 +52,7 @@ with gr.Blocks() as demo:
     )
 
     with gr.Accordion("📎 Datei hochladen", open=False):
-        file_upload = gr.File(label="Upload a CSV File", file_types=[".csv"])
+        file_upload = gr.File(label="Upload a CSV or PDF File", file_types=[".csv", ".pdf"])
         upload_status = gr.Textbox(label="Status", interactive=False)
 
     clear = gr.Button("❌ Alles zurücksetzen")
@@ -104,4 +65,11 @@ with gr.Blocks() as demo:
     clear.click(lambda: "", None, upload_status, queue=False)
     clear.click(lambda: {"csv_text": None, "filename": None, "was_sent": False}, None, file_state, queue=False)
 
-demo.launch(server_name="0.0.0.0", server_port=port)
+if __name__ == "__main__":
+    # Für Debugging: Zeige Umgebungsvariablen
+    print("Environment variables:")
+    print(f"WEBSITE_PORT: {os.environ.get('WEBSITE_PORT')}")
+    print(f"Port used: {port}")
+    
+    # Starte den Server
+    demo.launch(server_name="0.0.0.0", server_port=port)
