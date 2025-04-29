@@ -21,8 +21,8 @@ def chat_with_azure(message, history, file_state):
         bot_msg = history[i + 1]["content"] if i + 1 < len(history) and history[i + 1]["role"] == "assistant" else ""
         if user_msg.strip() or bot_msg.strip():
             chat_history.append({
-                "inputs": {"question": user_msg},
-                "outputs": {"answer": bot_msg}
+                "inputs": {"chat_input": user_msg},
+                "outputs": {"chat_output": bot_msg}
             })
 
     # Nur beim ersten Mal CSV-Inhalt anhängen
